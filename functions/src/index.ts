@@ -18,10 +18,13 @@ import * as logger from "firebase-functions/logger";
 //   response.send("Hello from Firebase!");
 // });
 
+import React, { useEffect } from 'react';
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
-admin.initializeApp();
+
+
+// admin.initializeApp();
 
 export const addPassengerToDriver = functions.firestore
   .document('Drivers/{driverId}/Passengers/{passengerId}')
@@ -35,3 +38,37 @@ export const addPassengerToDriver = functions.firestore
       Passengers: admin.firestore.FieldValue.arrayUnion(passengerData)
     });
   });
+
+  export const removePassengerFromDriver = functions.firestore
+  .document('Drivers/{driverId}/Passengers/{passengerId}')
+  .onUpdate(async (change, context) => {
+    const beforeData = change.before.data() as { Going?: boolean, DriverIdentifier?: string, PassengerName?: string };
+    const afterData = change.after.data() as { Going?: boolean, DriverIdentifier?: string, PassengerName?: string };
+
+    if (beforeData.Going === true && afterData.Going === false) {
+      // The 'Going' field changed from true to false
+
+      // Get the driver's unique identifier from the passenger document
+      const driverIdentifier = afterData.DriverIdentifier;
+      const passengerName = afterData.PassengerName;
+
+      if (driverIdentifier) {
+        // Update the driver document to remove the passenger's name from the 'Passengers' array
+        const driverRef = admin.firestore().collection('Drivers').doc(driverIdentifier);
+
+        return admin.firestore().runTransaction(async (transaction) => {
+          const driverDoc = await transaction.get(driverRef);
+          const driverData = driverDoc.data() as { Passengers: string[] };
+
+          // Remove the passenger's name from the 'Passengers' array
+          const updatedPassengers = driverData.Passengers.filter(name => name !== passengerName);
+
+          // Update the 'Passengers' array in the driver document
+          transaction.update(driverRef, { Passengers: updatedPassengers });
+        });
+      }
+    }
+
+    return null;
+  });
+
