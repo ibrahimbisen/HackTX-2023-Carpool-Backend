@@ -20,19 +20,18 @@ import * as logger from "firebase-functions/logger";
 
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+
 admin.initializeApp();
 
 export const addPassengerToDriver = functions.firestore
-  .document('Passengers/{Passenger Name}')
+  .document('Drivers/{driverId}/Passengers/{passengerId}')
   .onCreate(async (snapshot, context) => {
-    const passengerData = snapshot.data() as { passengerName: string, driverName: string }; // Define the data type of the passenger document.
-    const driverId = passengerData.driverName; // Assuming you store the driver's ID in the passenger document.
-
-    // Get the driver's document reference.
+    const passengerData = snapshot.data() as { passengerName: string };
+    const driverId = context.params.driverId;
     const driverRef = admin.firestore().collection('Drivers').doc(driverId);
 
-    // Update the driver's array to add the passenger's name (or other details).
+    // Update the driver document with passenger data
     return driverRef.update({
-      passengers: admin.firestore.FieldValue.arrayUnion(passengerData.passengerName)
+      Passengers: admin.firestore.FieldValue.arrayUnion(passengerData)
     });
   });
